@@ -7,6 +7,7 @@ A small Foundry VTT module for creating transparent hexagonal token images from 
 - Foundry VTT 12+
 - Verified for Foundry VTT 14
 - GM-only, because saving files requires upload permission
+- The Forge Assets Library (explicit `forgevtt` upload support)
 
 ## Installation
 
@@ -36,6 +37,7 @@ The image is saved beside the source file. By default, `portrait.png` becomes `p
 - The saved file is rectangular, as all raster image files are, but all pixels outside the hex are transparent.
 - The default hex is flat-top.
 - The crop is saved through Foundry's standard `FilePicker.upload` API.
+- On The Forge, output is uploaded explicitly to the user's Assets Library. If the source is in the user's own Assets Library, the token is saved beside it. For an external URL or a shared/read-only library, the token is saved in `hex-token-cropper/` in the user's own Assets Library.
 - Images should be stored in Foundry-accessible storage. Remote images may fail because browsers prevent canvas export when cross-origin permissions are absent.
 
 ## Macro/API use

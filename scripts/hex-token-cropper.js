@@ -70,6 +70,7 @@ class HexTokenCropper {
 
   constructor(initialPath = "", actor = null) {
     this.sourcePath = initialPath;
+    this.storageSource = this.isForge() ? "forgevtt" : "data";
     this.actor = actor;
     this.image = null;
     this.display = null;
@@ -223,7 +224,9 @@ class HexTokenCropper {
     const picker = new FilePicker({
       type: "image",
       current,
+      activeSource: this.storageSource,
       callback: path => {
+        this.storageSource = picker.activeSource ?? this.storageSource;
         this.setValue("source", path);
         this.loadImage(path);
       }
@@ -363,9 +366,10 @@ class HexTokenCropper {
       const blob = await new Promise(resolve => output.toBlob(resolve, mime, 0.95));
       if (!blob) throw new Error("The browser could not encode the token image.");
 
-      const destination = this.destinationPath(format);
+      const destination = await this.destinationPath(format);
       const file = new File([blob], destination.filename, { type: mime });
-      const uploadResult = await FilePicker.upload("data", destination.directory, file, {}, { notify: false });
+      const uploadResult = await FilePicker.upload(destination.source, destination.directory, file, {}, { notify: false });
+      if (!uploadResult?.path) throw new Error("The storage provider did not return a saved file path.");
       const savedPath = uploadResult?.path ?? `${destination.directory}/${destination.filename}`.replace(/^\//, "");
 
       if (this.actor && this.checked("assignActor")) {
@@ -397,15 +401,53 @@ class HexTokenCropper {
     };
   }
 
-  destinationPath(format) {
-    const cleanPath = decodeURIComponent(this.sourcePath.split("?")[0]);
+  async destinationPath(format) {
+    let cleanPath = this.safeDecode(this.sourcePath.split("?")[0]);
+    let source = this.storageSource || "data";
+
+    if (this.isForge()) {
+      source = "forgevtt";
+      const assetPrefix = await this.forgeAssetPrefix();
+      if (assetPrefix && cleanPath.startsWith(assetPrefix)) {
+        cleanPath = cleanPath.slice(assetPrefix.length);
+      } else if (/^https?:\/\//i.test(cleanPath)) {
+        // External and shared-library URLs cannot reliably be written beside the
+        // source. Save them in a module-owned folder in the user's Assets Library.
+        cleanPath = `hex-token-cropper/${cleanPath.split("/").pop() || "token.png"}`;
+      }
+    }
+
+    cleanPath = cleanPath.replace(/^\/+/, "");
     const slash = cleanPath.lastIndexOf("/");
     const directory = slash >= 0 ? cleanPath.slice(0, slash) : "";
     const original = slash >= 0 ? cleanPath.slice(slash + 1) : cleanPath;
     const dot = original.lastIndexOf(".");
     const base = dot > 0 ? original.slice(0, dot) : original;
     const suffix = this.value("suffix") || "-token";
-    return { directory, filename: `${base}${suffix}.${format}` };
+    return { source, directory, filename: `${base}${suffix}.${format}` };
+  }
+
+  isForge() {
+    return Boolean(globalThis.ForgeVTT?.usingTheForge);
+  }
+
+  async forgeAssetPrefix() {
+    try {
+      if (!globalThis.ForgeVTT?.ASSETS_LIBRARY_URL_PREFIX || !globalThis.ForgeAPI?.getUserId) return "";
+      const userId = await globalThis.ForgeAPI.getUserId();
+      return `${globalThis.ForgeVTT.ASSETS_LIBRARY_URL_PREFIX}${userId}/`;
+    } catch (error) {
+      console.warn(`${MODULE_ID} | Could not determine Forge Assets Library prefix`, error);
+      return "";
+    }
+  }
+
+  safeDecode(value) {
+    try {
+      return decodeURIComponent(value);
+    } catch (_error) {
+      return value;
+    }
   }
 
   hexHeight(width) {
