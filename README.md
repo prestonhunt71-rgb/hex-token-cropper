@@ -9,6 +9,8 @@ A small Foundry VTT module for creating transparent hexagonal token images from 
 - GM-only, because saving files requires upload permission
 - The Forge Assets Library (explicit `forgevtt` upload support)
 
+Version 1.1.1 fixes Foundry's File Picker opening behind the cropper overlay.
+
 ## Installation
 
 1. Extract the `hex-token-cropper` folder into Foundry's `Data/modules/` directory.

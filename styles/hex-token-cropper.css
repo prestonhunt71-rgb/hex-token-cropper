@@ -1,7 +1,10 @@
 #hex-token-cropper-overlay {
   position: fixed;
   inset: 0;
-  z-index: 100000;
+  /* Keep the custom overlay in Foundry's normal window stack. A very large
+     value here prevents FilePicker and other Foundry applications from
+     appearing above the cropper. */
+  z-index: 100;
   display: grid;
   place-items: center;
   background: rgba(0, 0, 0, 0.72);
