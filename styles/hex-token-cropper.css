@@ -1,0 +1,188 @@
+#hex-token-cropper-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+#hex-token-cropper-overlay .htc-window {
+  width: min(1220px, 96vw);
+  max-height: 96vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--color-text-primary, #eee);
+  background: var(--color-cool-5, #24262b);
+  border: 1px solid var(--color-border-light-primary, #777);
+  border-radius: 8px;
+  box-shadow: 0 12px 50px #000;
+}
+
+.htc-header,
+.htc-footer,
+.htc-source-row {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.htc-header,
+.htc-footer,
+.htc-path-controls,
+.htc-source-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.htc-header {
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.htc-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.htc-icon-button {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+}
+
+.htc-source-row {
+  align-items: stretch;
+}
+
+.htc-source-row > label {
+  display: flex;
+  align-items: center;
+  min-width: 95px;
+  font-weight: 700;
+}
+
+.htc-path-controls {
+  flex: 1;
+}
+
+.htc-path-controls input {
+  flex: 1;
+}
+
+.htc-main {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(500px, 1fr) 250px;
+  gap: 12px;
+  padding: 12px;
+  overflow: auto;
+}
+
+.htc-stage-wrap {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #151619;
+}
+
+.htc-stage {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: calc(96vh - 190px);
+  object-fit: contain;
+  touch-action: none;
+  cursor: move;
+}
+
+.htc-empty {
+  position: absolute;
+  color: #aaa;
+  pointer-events: none;
+}
+
+.htc-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.htc-sidebar label:not(.htc-checkbox) {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-weight: 700;
+}
+
+.htc-sidebar output {
+  text-align: right;
+  color: #bbb;
+  font-size: 0.9em;
+}
+
+.htc-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.htc-checkbox input {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+.htc-help {
+  margin: auto 0 0;
+  color: #bbb;
+  line-height: 1.35;
+}
+
+.htc-footer {
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.htc-footer > div {
+  display: flex;
+  gap: 8px;
+}
+
+.htc-primary {
+  font-weight: 700;
+}
+
+.htc-status {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #bbb;
+}
+
+.htc-error {
+  color: #ff8f8f;
+}
+
+.htc-hidden {
+  display: none !important;
+}
+
+@media (max-width: 850px) {
+  .htc-main {
+    grid-template-columns: 1fr;
+  }
+
+  .htc-sidebar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

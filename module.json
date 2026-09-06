@@ -1,0 +1,21 @@
+{
+  "id": "hex-token-cropper",
+  "title": "Hex Token Cropper",
+  "description": "Position a hexagonal crop over an image, export it with transparent corners, and save it beside the source image as a token file.",
+  "version": "1.0.0",
+  "authors": [
+    {
+      "name": "Dungeon Master"
+    }
+  ],
+  "compatibility": {
+    "minimum": "12",
+    "verified": "14"
+  },
+  "esmodules": [
+    "scripts/hex-token-cropper.js"
+  ],
+  "styles": [
+    "styles/hex-token-cropper.css"
+  ]
+}
