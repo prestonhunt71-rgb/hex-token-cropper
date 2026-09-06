@@ -29,9 +29,9 @@ Hooks.once("init", () => {
   });
 
   game.settings.registerMenu(MODULE_ID, "launchCropper", {
-    name: "Open Hex Token Cropper",
+    name: "Open Token Shape Cropper",
     label: "Open Cropper",
-    hint: "Choose an image, position the hex, and create a token.",
+    hint: "Choose an image, position the crop shape, and create a token.",
     icon: "fa-solid fa-crop-simple",
     type: HexTokenCropperLauncher,
     restricted: true
@@ -45,7 +45,7 @@ Hooks.on("getSceneControlButtons", controls => {
 
   const tool = {
     name: "hex-token-cropper",
-    title: "Hex Token Cropper",
+    title: "Token Shape Cropper",
     icon: "fa-solid fa-hexagon-nodes",
     button: true,
     onChange: () => HexTokenCropper.open()
@@ -58,7 +58,7 @@ Hooks.on("getSceneControlButtons", controls => {
 class HexTokenCropperLauncher extends (foundry?.applications?.api?.ApplicationV2 ?? Application) {
   static DEFAULT_OPTIONS = {
     id: "hex-token-cropper-launcher",
-    window: { title: "Hex Token Cropper" }
+    window: { title: "Token Shape Cropper" }
   };
 
   async render(_options = {}) {
@@ -84,11 +84,12 @@ class HexTokenCropper {
     this.display = null;
     this.hex = { x: 0, y: 0, width: 300, height: 260 };
     this.drag = null;
+    this.savedPath = "";
   }
 
   render() {
     if (!game.user?.isGM) {
-      ui.notifications.warn("Hex Token Cropper is a Gamemaster-only tool.");
+      ui.notifications.warn("Token Shape Cropper is a Gamemaster-only tool.");
       return;
     }
     document.querySelector("#hex-token-cropper-overlay")?.remove();
@@ -96,9 +97,9 @@ class HexTokenCropper {
     const overlay = document.createElement("div");
     overlay.id = "hex-token-cropper-overlay";
     overlay.innerHTML = `
-      <section class="htc-window" role="dialog" aria-modal="true" aria-label="Hex Token Cropper">
+      <section class="htc-window" role="dialog" aria-modal="true" aria-label="Token Shape Cropper">
         <header class="htc-header">
-          <h2><i class="fa-solid fa-crop-simple"></i> Hex Token Cropper</h2>
+          <h2><i class="fa-solid fa-crop-simple"></i> Token Shape Cropper</h2>
           <button type="button" class="htc-icon-button" data-action="close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
         </header>
 
@@ -119,13 +120,21 @@ class HexTokenCropper {
 
           <aside class="htc-sidebar">
             <label>
-              Drag action
-              <select data-field="dragMode">
-                <option value="hex" selected>Move hex</option>
-                <option value="image">Move image</option>
+              Token shape
+              <select data-field="shape">
+                <option value="hex" selected>Hexagon</option>
+                <option value="circle">Circle</option>
+                <option value="square">Square</option>
               </select>
             </label>
             <label>
+              Drag action
+              <select data-field="dragMode">
+                <option value="hex" selected>Move shape</option>
+                <option value="image">Move image</option>
+              </select>
+            </label>
+            <label data-control="orientation">
               Hex orientation
               <select data-field="orientation">
                 <option value="flat" selected>Flat top</option>
@@ -133,7 +142,7 @@ class HexTokenCropper {
               </select>
             </label>
             <label>
-              Hex width
+              Shape size
               <input type="range" data-field="hexWidth" min="80" max="800" step="2" value="300">
               <output data-output="hexWidth">300 px</output>
             </label>
@@ -159,19 +168,20 @@ class HexTokenCropper {
             </label>
             <label class="htc-checkbox">
               <input type="checkbox" data-field="outline">
-              Bake a thin hex outline into image
+              Bake a thin shape outline into image
             </label>
             <label class="htc-checkbox ${this.actor ? "" : "htc-hidden"}">
               <input type="checkbox" data-field="assignActor" ${this.actor ? "checked" : ""}>
               Assign to ${this.actor ? this.escape(this.actor.name) : "Actor"}
             </label>
-            <p class="htc-help">Drag the hex to position it. Resize it with the slider. Everything outside the hex becomes transparent.</p>
+            <p class="htc-help">Drag the shape or image to position the crop. Everything outside the selected shape becomes transparent.</p>
           </aside>
         </div>
 
         <footer class="htc-footer">
           <span class="htc-status" data-status></span>
           <div>
+            <button type="button" data-action="copy-path" disabled title="Copy the saved token path"><i class="fa-solid fa-copy"></i> Copy Path</button>
             <button type="button" data-action="close">Cancel</button>
             <button type="button" class="htc-primary" data-action="create" disabled><i class="fa-solid fa-floppy-disk"></i> Create Token</button>
           </div>
@@ -194,24 +204,39 @@ class HexTokenCropper {
       if (action === "browse") this.browse();
       if (action === "load") this.loadImage(this.value("source"));
       if (action === "create") this.createToken();
+      if (action === "copy-path") this.copySavedPath();
+    });
+
+    this.root.querySelector('[data-field="shape"]').addEventListener("change", () => {
+      const center = { x: this.hex.x + this.hex.width / 2, y: this.hex.y + this.hex.height / 2 };
+      this.hex.width = Math.min(this.hex.width, this.maxShapeWidth());
+      this.hex.height = this.shapeHeight(this.hex.width);
+      this.hex.x = center.x - this.hex.width / 2;
+      this.hex.y = center.y - this.hex.height / 2;
+      this.root.querySelector('[data-control="orientation"]').classList.toggle("htc-hidden", this.value("shape") !== "hex");
+      this.updateSizeControl();
+      this.clampHex();
+      this.draw();
     });
 
     this.root.querySelector('[data-field="hexWidth"]').addEventListener("input", event => {
       const oldCenter = { x: this.hex.x + this.hex.width / 2, y: this.hex.y + this.hex.height / 2 };
-      this.hex.width = Number(event.target.value);
-      this.hex.height = this.hexHeight(this.hex.width);
+      this.hex.width = Math.min(Number(event.target.value), this.maxShapeWidth());
+      this.hex.height = this.shapeHeight(this.hex.width);
       this.hex.x = oldCenter.x - this.hex.width / 2;
       this.hex.y = oldCenter.y - this.hex.height / 2;
       this.clampHex();
-      this.root.querySelector('[data-output="hexWidth"]').textContent = `${this.hex.width} px`;
+      this.updateSizeControl();
       this.draw();
     });
 
     this.root.querySelector('[data-field="orientation"]').addEventListener("change", () => {
       const center = { x: this.hex.x + this.hex.width / 2, y: this.hex.y + this.hex.height / 2 };
-      this.hex.height = this.hexHeight(this.hex.width);
+      this.hex.width = Math.min(this.hex.width, this.maxShapeWidth());
+      this.hex.height = this.shapeHeight(this.hex.width);
       this.hex.x = center.x - this.hex.width / 2;
       this.hex.y = center.y - this.hex.height / 2;
+      this.updateSizeControl();
       this.clampHex();
       this.draw();
     });
@@ -221,7 +246,7 @@ class HexTokenCropper {
       const p = this.canvasPoint(event);
       const mode = this.value("dragMode");
       if (mode === "hex") {
-        if (!this.pointInHex(p.x, p.y, this.hex)) return;
+        if (!this.pointInShape(p.x, p.y, this.hex)) return;
         this.drag = { mode, dx: p.x - this.hex.x, dy: p.y - this.hex.y };
       } else {
         if (!this.pointInDisplay(p.x, p.y)) return;
@@ -283,15 +308,15 @@ class HexTokenCropper {
 
       this.image = image;
       this.sourcePath = path;
+      this.savedPath = "";
+      this.root.querySelector('[data-action="copy-path"]').disabled = true;
       this.calculateDisplay();
-      const defaultWidth = Math.min(360, this.display.width * 0.7);
+      const defaultWidth = Math.min(360, this.display.width * 0.7, this.maxShapeWidth());
       this.hex.width = Math.max(80, Math.round(defaultWidth));
-      this.hex.height = this.hexHeight(this.hex.width);
+      this.hex.height = this.shapeHeight(this.hex.width);
       this.hex.x = this.display.x + (this.display.width - this.hex.width) / 2;
       this.hex.y = this.display.y + (this.display.height - this.hex.height) / 2;
-      this.root.querySelector('[data-field="hexWidth"]').max = Math.round(Math.max(this.display.width, this.display.height));
-      this.root.querySelector('[data-field="hexWidth"]').value = this.hex.width;
-      this.root.querySelector('[data-output="hexWidth"]').textContent = `${this.hex.width} px`;
+      this.updateSizeControl();
       this.root.querySelector(".htc-empty").classList.add("htc-hidden");
       this.root.querySelector('[data-action="create"]').disabled = false;
       this.setStatus(`${image.naturalWidth} × ${image.naturalHeight}`);
@@ -333,12 +358,12 @@ class HexTokenCropper {
     ctx.fillStyle = "rgba(0, 0, 0, 0.58)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.globalCompositeOperation = "destination-out";
-    this.traceHex(ctx, this.hex);
+    this.traceShape(ctx, this.hex);
     ctx.fill();
     ctx.restore();
 
     ctx.save();
-    this.traceHex(ctx, this.hex);
+    this.traceShape(ctx, this.hex);
     ctx.lineWidth = 4;
     ctx.strokeStyle = "rgba(255,255,255,0.95)";
     ctx.stroke();
@@ -356,7 +381,7 @@ class HexTokenCropper {
     this.setStatus("Creating token…");
 
     try {
-      const sourceRect = this.displayHexToSource();
+      const sourceRect = this.displayShapeToSource();
       const requestedWidth = this.value("outputSize");
       const outputWidth = requestedWidth === "natural" ? Math.max(1, Math.round(sourceRect.width)) : Number(requestedWidth);
       const outputHeight = Math.max(1, Math.round(outputWidth * sourceRect.height / sourceRect.width));
@@ -365,9 +390,9 @@ class HexTokenCropper {
       output.height = outputHeight;
       const ctx = output.getContext("2d");
 
-      const outHex = { x: 0, y: 0, width: outputWidth, height: outputHeight };
+      const outShape = { x: 0, y: 0, width: outputWidth, height: outputHeight };
       ctx.save();
-      this.traceHex(ctx, outHex);
+      this.traceShape(ctx, outShape);
       ctx.clip();
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
@@ -386,7 +411,7 @@ class HexTokenCropper {
 
       if (this.checked("outline")) {
         ctx.save();
-        this.traceHex(ctx, outHex);
+        this.traceShape(ctx, outShape);
         ctx.lineWidth = Math.max(2, outputWidth / 180);
         ctx.strokeStyle = "rgba(255,255,255,0.92)";
         ctx.stroke();
@@ -410,7 +435,9 @@ class HexTokenCropper {
       }
 
       this.setStatus(`Saved: ${savedPath}`);
-      ui.notifications.info(`Hex token saved as ${savedPath}`);
+      this.savedPath = savedPath;
+      this.root.querySelector('[data-action="copy-path"]').disabled = false;
+      ui.notifications.info(`Token saved as ${savedPath}`);
     } catch (error) {
       console.error(`${MODULE_ID} | Token creation failed`, error);
       this.setStatus(error.message, true);
@@ -420,7 +447,7 @@ class HexTokenCropper {
     }
   }
 
-  displayHexToSource() {
+  displayShapeToSource() {
     const d = this.display;
     const x = (this.hex.x - d.x) / d.scale;
     const y = (this.hex.y - d.y) / d.scale;
@@ -487,6 +514,34 @@ class HexTokenCropper {
     return this.value("orientation") === "flat" ? width * Math.sqrt(3) / 2 : width * 2 / Math.sqrt(3);
   }
 
+  shapeHeight(width) {
+    return this.value("shape") === "hex" ? this.hexHeight(width) : width;
+  }
+
+  maxShapeWidth() {
+    if (!this.display) return 800;
+    const heightRatio = this.shapeHeight(1);
+    return Math.max(1, Math.floor(Math.min(this.display.width, this.display.height / heightRatio)));
+  }
+
+  updateSizeControl() {
+    const control = this.root.querySelector('[data-field="hexWidth"]');
+    const width = Math.round(this.hex.width);
+    control.max = this.maxShapeWidth();
+    control.value = width;
+    this.root.querySelector('[data-output="hexWidth"]').textContent = `${width} px`;
+  }
+
+  traceShape(ctx, rect) {
+    const shape = this.value("shape") || "hex";
+    if (shape === "hex") return this.traceHex(ctx, rect);
+    const { x, y, width, height } = rect;
+    ctx.beginPath?.();
+    if (shape === "circle") ctx.ellipse(x + width / 2, y + height / 2, width / 2, height / 2, 0, 0, Math.PI * 2);
+    else ctx.rect(x, y, width, height);
+    ctx.closePath();
+  }
+
   traceHex(ctx, rect) {
     const { x, y, width: w, height: h } = rect;
     ctx.beginPath?.();
@@ -508,10 +563,29 @@ class HexTokenCropper {
     ctx.closePath();
   }
 
-  pointInHex(px, py, rect) {
+  pointInShape(px, py, rect) {
     const probe = new Path2D();
-    this.traceHex(probe, rect);
+    this.traceShape(probe, rect);
     return this.ctx.isPointInPath(probe, px, py);
+  }
+
+  async copySavedPath() {
+    if (!this.savedPath) return;
+    try {
+      await navigator.clipboard.writeText(this.savedPath);
+    } catch (_error) {
+      const field = document.createElement("textarea");
+      field.value = this.savedPath;
+      field.style.position = "fixed";
+      field.style.opacity = "0";
+      document.body.appendChild(field);
+      field.select();
+      const copied = document.execCommand("copy");
+      field.remove();
+      if (!copied) throw new Error("Clipboard access was denied.");
+    }
+    this.setStatus(`Copied: ${this.savedPath}`);
+    ui.notifications.info("Token path copied to the clipboard.");
   }
 
   pointInDisplay(px, py) {
