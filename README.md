@@ -9,7 +9,7 @@ A small Foundry VTT module for creating transparent hexagonal token images from 
 - GM-only, because saving files requires upload permission
 - The Forge Assets Library (explicit `forgevtt` upload support)
 
-Version 1.2.0 fixes dragging on Foundry 14, adds separate **Move hex** and **Move image** modes, and uses the namespaced Foundry FilePicker API.
+Version 1.2.1 uses The Forge's augmented FilePicker while hosted on Forge, preserving the **The Forge Assets** and **The Bazaar** tabs. Outside Forge it uses Foundry's namespaced FilePicker API.
 
 ## Installation
 

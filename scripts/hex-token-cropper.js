@@ -1,5 +1,12 @@
 const MODULE_ID = "hex-token-cropper";
-const FoundryFilePicker = globalThis.foundry?.applications?.apps?.FilePicker ?? globalThis.FilePicker;
+
+function getFilePickerClass() {
+  // The Forge augments Foundry's global FilePicker with its Assets Library and
+  // Bazaar sources. Using Foundry's namespaced base class on Forge bypasses
+  // those additions, so the global class is intentionally required there.
+  if (globalThis.ForgeVTT?.usingTheForge && globalThis.FilePicker) return globalThis.FilePicker;
+  return globalThis.foundry?.applications?.apps?.FilePicker ?? globalThis.FilePicker;
+}
 
 Hooks.once("init", () => {
   game.settings.register(MODULE_ID, "suffix", {
@@ -245,7 +252,8 @@ class HexTokenCropper {
 
   async browse() {
     const current = this.value("source");
-    const picker = new FoundryFilePicker({
+    const FilePickerClass = getFilePickerClass();
+    const picker = new FilePickerClass({
       type: "image",
       current,
       activeSource: this.storageSource,
@@ -392,7 +400,8 @@ class HexTokenCropper {
 
       const destination = await this.destinationPath(format);
       const file = new File([blob], destination.filename, { type: mime });
-      const uploadResult = await FoundryFilePicker.upload(destination.source, destination.directory, file, {}, { notify: false });
+      const FilePickerClass = getFilePickerClass();
+      const uploadResult = await FilePickerClass.upload(destination.source, destination.directory, file, {}, { notify: false });
       if (!uploadResult?.path) throw new Error("The storage provider did not return a saved file path.");
       const savedPath = uploadResult?.path ?? `${destination.directory}/${destination.filename}`.replace(/^\//, "");
 
