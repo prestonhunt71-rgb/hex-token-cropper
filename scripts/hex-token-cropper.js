@@ -1,4 +1,5 @@
 const MODULE_ID = "hex-token-cropper";
+const FoundryFilePicker = globalThis.foundry?.applications?.apps?.FilePicker ?? globalThis.FilePicker;
 
 Hooks.once("init", () => {
   game.settings.register(MODULE_ID, "suffix", {
@@ -79,6 +80,10 @@ class HexTokenCropper {
   }
 
   render() {
+    if (!game.user?.isGM) {
+      ui.notifications.warn("Hex Token Cropper is a Gamemaster-only tool.");
+      return;
+    }
     document.querySelector("#hex-token-cropper-overlay")?.remove();
 
     const overlay = document.createElement("div");
@@ -106,6 +111,13 @@ class HexTokenCropper {
           </div>
 
           <aside class="htc-sidebar">
+            <label>
+              Drag action
+              <select data-field="dragMode">
+                <option value="hex" selected>Move hex</option>
+                <option value="image">Move image</option>
+              </select>
+            </label>
             <label>
               Hex orientation
               <select data-field="orientation">
@@ -200,17 +212,29 @@ class HexTokenCropper {
     this.canvas.addEventListener("pointerdown", event => {
       if (!this.image) return;
       const p = this.canvasPoint(event);
-      if (!this.pointInHex(p.x, p.y, this.hex)) return;
-      this.drag = { dx: p.x - this.hex.x, dy: p.y - this.hex.y };
+      const mode = this.value("dragMode");
+      if (mode === "hex") {
+        if (!this.pointInHex(p.x, p.y, this.hex)) return;
+        this.drag = { mode, dx: p.x - this.hex.x, dy: p.y - this.hex.y };
+      } else {
+        if (!this.pointInDisplay(p.x, p.y)) return;
+        this.drag = { mode, dx: p.x - this.display.x, dy: p.y - this.display.y };
+      }
       this.canvas.setPointerCapture(event.pointerId);
     });
 
     this.canvas.addEventListener("pointermove", event => {
       if (!this.drag) return;
       const p = this.canvasPoint(event);
-      this.hex.x = p.x - this.drag.dx;
-      this.hex.y = p.y - this.drag.dy;
-      this.clampHex();
+      if (this.drag.mode === "hex") {
+        this.hex.x = p.x - this.drag.dx;
+        this.hex.y = p.y - this.drag.dy;
+        this.clampHex();
+      } else {
+        this.display.x = p.x - this.drag.dx;
+        this.display.y = p.y - this.drag.dy;
+        this.clampDisplayToHex();
+      }
       this.draw();
     });
 
@@ -221,7 +245,7 @@ class HexTokenCropper {
 
   async browse() {
     const current = this.value("source");
-    const picker = new FilePicker({
+    const picker = new FoundryFilePicker({
       type: "image",
       current,
       activeSource: this.storageSource,
@@ -368,7 +392,7 @@ class HexTokenCropper {
 
       const destination = await this.destinationPath(format);
       const file = new File([blob], destination.filename, { type: mime });
-      const uploadResult = await FilePicker.upload(destination.source, destination.directory, file, {}, { notify: false });
+      const uploadResult = await FoundryFilePicker.upload(destination.source, destination.directory, file, {}, { notify: false });
       if (!uploadResult?.path) throw new Error("The storage provider did not return a saved file path.");
       const savedPath = uploadResult?.path ?? `${destination.directory}/${destination.filename}`.replace(/^\//, "");
 
@@ -456,7 +480,7 @@ class HexTokenCropper {
 
   traceHex(ctx, rect) {
     const { x, y, width: w, height: h } = rect;
-    ctx.beginPath();
+    ctx.beginPath?.();
     if (this.value("orientation") === "flat") {
       ctx.moveTo(x + w * 0.25, y);
       ctx.lineTo(x + w * 0.75, y);
@@ -481,10 +505,21 @@ class HexTokenCropper {
     return this.ctx.isPointInPath(probe, px, py);
   }
 
+  pointInDisplay(px, py) {
+    const d = this.display;
+    return px >= d.x && px <= d.x + d.width && py >= d.y && py <= d.y + d.height;
+  }
+
   clampHex() {
     if (!this.display) return;
     this.hex.x = Math.max(this.display.x, Math.min(this.hex.x, this.display.x + this.display.width - this.hex.width));
     this.hex.y = Math.max(this.display.y, Math.min(this.hex.y, this.display.y + this.display.height - this.hex.height));
+  }
+
+  clampDisplayToHex() {
+    if (!this.display) return;
+    this.display.x = Math.min(this.hex.x, Math.max(this.display.x, this.hex.x + this.hex.width - this.display.width));
+    this.display.y = Math.min(this.hex.y, Math.max(this.display.y, this.hex.y + this.hex.height - this.display.height));
   }
 
   canvasPoint(event) {

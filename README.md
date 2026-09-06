@@ -9,7 +9,7 @@ A small Foundry VTT module for creating transparent hexagonal token images from 
 - GM-only, because saving files requires upload permission
 - The Forge Assets Library (explicit `forgevtt` upload support)
 
-Version 1.1.1 fixes Foundry's File Picker opening behind the cropper overlay.
+Version 1.2.0 fixes dragging on Foundry 14, adds separate **Move hex** and **Move image** modes, and uses the namespaced Foundry FilePicker API.
 
 ## Installation
 
@@ -27,7 +27,7 @@ Open the cropper from either location:
 Then:
 
 1. Choose an image using **Browse**.
-2. Drag the hex over the desired part of the image.
+2. Choose **Move hex** or **Move image**, then drag to position the crop.
 3. Resize the hex with the width slider.
 4. Choose PNG or WebP and an output size.
 5. Click **Create Token**.
