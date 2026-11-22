@@ -9,7 +9,7 @@ A small Foundry VTT module for creating hexagonal, circular, or square token ima
 - GM-only, because saving files requires upload permission
 - The Forge Assets Library (explicit `forgevtt` upload support)
 
-Version 1.3.0 adds circle and square crops plus one-click copying of a newly saved token's path. It uses The Forge's augmented FilePicker while hosted on Forge, preserving the **The Forge Assets** and **The Bazaar** tabs. Outside Forge it uses Foundry's namespaced FilePicker API.
+Version 1.4.0 saves all output as WebP. If the chosen character image is not already WebP, the module creates a full-size WebP copy while preserving the original file. It also shows separate, copyable paths for the WebP character art and WebP token art. It uses The Forge's augmented FilePicker while hosted on Forge, preserving the **The Forge Assets** and **The Bazaar** tabs. Outside Forge it uses Foundry's namespaced FilePicker API.
 
 ## Installation
 
@@ -30,15 +30,17 @@ Then:
 2. Choose a hexagon, circle, or square.
 3. Choose **Move shape** or **Move image**, then drag to position the crop.
 4. Resize the shape with the size slider.
-5. Choose PNG or WebP and an output size.
+5. Choose an output size. Tokens are always saved as WebP.
 6. Click **Create Token**.
-7. Click **Copy Path** to put the saved token path on the clipboard for pasting elsewhere.
+7. Copy the separately labeled **Character Art** or **Token Art** path for use elsewhere.
 
-The image is saved beside the source file. By default, `portrait.png` becomes `portrait-token.png`.
+The WebP files are saved beside the source when its storage location is writable. By default, `portrait.png` produces `portrait.webp` and `portrait-token.webp`; the original `portrait.png` remains untouched.
 
 ## Notes
 
 - The saved file is rectangular, as all raster image files are, but pixels outside a hex or circle are transparent.
+- Non-WebP source art is preserved and a full-size WebP copy is saved beside it when possible.
+- Existing WebP character art is reused rather than converted again.
 - The default hex is flat-top.
 - The crop is saved through Foundry's standard `FilePicker.upload` API.
 - On The Forge, output is uploaded explicitly to the user's Assets Library. If the source is in the user's own Assets Library, the token is saved beside it. For an external URL or a shared/read-only library, the token is saved in `hex-token-cropper/` in the user's own Assets Library.

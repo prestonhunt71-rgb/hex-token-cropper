@@ -25,6 +25,7 @@
 
 .htc-header,
 .htc-footer,
+.htc-output-paths,
 .htc-source-row {
   flex: 0 0 auto;
   padding: 10px 14px;
@@ -154,6 +155,45 @@
   border-top: 1px solid rgba(255, 255, 255, 0.15);
 }
 
+.htc-output-paths {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.htc-output-paths label {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-weight: 700;
+}
+
+.htc-output-path-row {
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+}
+
+.htc-output-path-row input {
+  min-width: 0;
+  flex: 1;
+  font-family: monospace;
+}
+
+.htc-output-path-row button {
+  flex: 0 0 auto;
+}
+
+.htc-format-note {
+  margin: 0;
+  padding: 8px;
+  color: #ccc;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+}
+
 .htc-footer > div {
   display: flex;
   gap: 8px;
@@ -187,5 +227,9 @@
   .htc-sidebar {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .htc-output-paths {
+    grid-template-columns: 1fr;
   }
 }

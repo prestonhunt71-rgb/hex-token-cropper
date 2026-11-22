@@ -18,16 +18,6 @@ Hooks.once("init", () => {
     default: "-token"
   });
 
-  game.settings.register(MODULE_ID, "outputFormat", {
-    name: "Output format",
-    hint: "PNG is lossless. WebP usually produces smaller files.",
-    scope: "world",
-    config: true,
-    type: String,
-    choices: { png: "PNG", webp: "WebP" },
-    default: "png"
-  });
-
   game.settings.registerMenu(MODULE_ID, "launchCropper", {
     name: "Open Token Shape Cropper",
     label: "Open Cropper",
@@ -84,7 +74,8 @@ class HexTokenCropper {
     this.display = null;
     this.hex = { x: 0, y: 0, width: 300, height: 260 };
     this.drag = null;
-    this.savedPath = "";
+    this.characterArtPath = "";
+    this.tokenArtPath = "";
   }
 
   render() {
@@ -159,13 +150,7 @@ class HexTokenCropper {
               Filename suffix
               <input type="text" data-field="suffix" value="${this.escape(game.settings.get(MODULE_ID, "suffix"))}">
             </label>
-            <label>
-              Format
-              <select data-field="format">
-                <option value="png" ${game.settings.get(MODULE_ID, "outputFormat") === "png" ? "selected" : ""}>PNG</option>
-                <option value="webp" ${game.settings.get(MODULE_ID, "outputFormat") === "webp" ? "selected" : ""}>WebP</option>
-              </select>
-            </label>
+            <p class="htc-format-note"><i class="fa-solid fa-image"></i> Character and token art are saved as WebP.</p>
             <label class="htc-checkbox">
               <input type="checkbox" data-field="outline">
               Bake a thin shape outline into image
@@ -178,10 +163,26 @@ class HexTokenCropper {
           </aside>
         </div>
 
+        <section class="htc-output-paths" aria-label="Saved art paths">
+          <label>
+            Character Art
+            <span class="htc-output-path-row">
+              <input type="text" data-path="character" readonly placeholder="Created or reused WebP character art path">
+              <button type="button" data-action="copy-character-path" disabled title="Copy character art path"><i class="fa-solid fa-copy"></i> Copy</button>
+            </span>
+          </label>
+          <label>
+            Token Art
+            <span class="htc-output-path-row">
+              <input type="text" data-path="token" readonly placeholder="Created WebP token art path">
+              <button type="button" data-action="copy-token-path" disabled title="Copy token art path"><i class="fa-solid fa-copy"></i> Copy</button>
+            </span>
+          </label>
+        </section>
+
         <footer class="htc-footer">
           <span class="htc-status" data-status></span>
           <div>
-            <button type="button" data-action="copy-path" disabled title="Copy the saved token path"><i class="fa-solid fa-copy"></i> Copy Path</button>
             <button type="button" data-action="close">Cancel</button>
             <button type="button" class="htc-primary" data-action="create" disabled><i class="fa-solid fa-floppy-disk"></i> Create Token</button>
           </div>
@@ -204,7 +205,8 @@ class HexTokenCropper {
       if (action === "browse") this.browse();
       if (action === "load") this.loadImage(this.value("source"));
       if (action === "create") this.createToken();
-      if (action === "copy-path") this.copySavedPath();
+      if (action === "copy-character-path") this.copyPath(this.characterArtPath, "Character art");
+      if (action === "copy-token-path") this.copyPath(this.tokenArtPath, "Token art");
     });
 
     this.root.querySelector('[data-field="shape"]').addEventListener("change", () => {
@@ -308,8 +310,8 @@ class HexTokenCropper {
 
       this.image = image;
       this.sourcePath = path;
-      this.savedPath = "";
-      this.root.querySelector('[data-action="copy-path"]').disabled = true;
+      this.setOutputPath("character", "");
+      this.setOutputPath("token", "");
       this.calculateDisplay();
       const defaultWidth = Math.min(360, this.display.width * 0.7, this.maxShapeWidth());
       this.hex.width = Math.max(80, Math.round(defaultWidth));
@@ -418,12 +420,14 @@ class HexTokenCropper {
         ctx.restore();
       }
 
-      const format = this.value("format");
-      const mime = format === "webp" ? "image/webp" : "image/png";
-      const blob = await new Promise(resolve => output.toBlob(resolve, mime, 0.95));
+      const characterArtPath = await this.ensureCharacterArtWebP();
+      this.setOutputPath("character", characterArtPath);
+
+      const mime = "image/webp";
+      const blob = await this.canvasToWebP(output);
       if (!blob) throw new Error("The browser could not encode the token image.");
 
-      const destination = await this.destinationPath(format);
+      const destination = await this.destinationPath();
       const file = new File([blob], destination.filename, { type: mime });
       const FilePickerClass = getFilePickerClass();
       const uploadResult = await FilePickerClass.upload(destination.source, destination.directory, file, {}, { notify: false });
@@ -434,9 +438,8 @@ class HexTokenCropper {
         await this.actor.update({ "prototypeToken.texture.src": savedPath });
       }
 
-      this.setStatus(`Saved: ${savedPath}`);
-      this.savedPath = savedPath;
-      this.root.querySelector('[data-action="copy-path"]').disabled = false;
+      this.setStatus("Character and token WebP paths are ready.");
+      this.setOutputPath("token", savedPath);
       ui.notifications.info(`Token saved as ${savedPath}`);
     } catch (error) {
       console.error(`${MODULE_ID} | Token creation failed`, error);
@@ -461,7 +464,44 @@ class HexTokenCropper {
     };
   }
 
-  async destinationPath(format) {
+  async ensureCharacterArtWebP() {
+    if (this.isWebPPath(this.sourcePath)) return this.sourcePath;
+
+    this.setStatus("Converting character art to WebP…");
+    const canvas = document.createElement("canvas");
+    canvas.width = this.image.naturalWidth;
+    canvas.height = this.image.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(this.image, 0, 0, canvas.width, canvas.height);
+
+    const blob = await this.canvasToWebP(canvas);
+    const destination = await this.destinationPath("");
+    const file = new File([blob], destination.filename, { type: "image/webp" });
+    const FilePickerClass = getFilePickerClass();
+    const uploadResult = await FilePickerClass.upload(destination.source, destination.directory, file, {}, { notify: false });
+    if (!uploadResult?.path) throw new Error("The storage provider did not return the converted character art path.");
+    return uploadResult.path;
+  }
+
+  canvasToWebP(canvas) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(blob => {
+        if (!blob || blob.type !== "image/webp") {
+          reject(new Error("This browser could not encode WebP artwork."));
+          return;
+        }
+        resolve(blob);
+      }, "image/webp", 0.95);
+    });
+  }
+
+  isWebPPath(path) {
+    return /\.webp(?:[?#].*)?$/i.test(String(path ?? ""));
+  }
+
+  async destinationPath(suffixOverride = null) {
     let cleanPath = this.safeDecode(this.sourcePath.split("?")[0]);
     let source = this.storageSource || "data";
 
@@ -483,8 +523,8 @@ class HexTokenCropper {
     const original = slash >= 0 ? cleanPath.slice(slash + 1) : cleanPath;
     const dot = original.lastIndexOf(".");
     const base = dot > 0 ? original.slice(0, dot) : original;
-    const suffix = this.value("suffix") || "-token";
-    return { source, directory, filename: `${base}${suffix}.${format}` };
+    const suffix = suffixOverride ?? (this.value("suffix") || "-token");
+    return { source, directory, filename: `${base}${suffix}.webp` };
   }
 
   isForge() {
@@ -569,13 +609,23 @@ class HexTokenCropper {
     return this.ctx.isPointInPath(probe, px, py);
   }
 
-  async copySavedPath() {
-    if (!this.savedPath) return;
+  setOutputPath(kind, path) {
+    const value = path ?? "";
+    if (kind === "character") this.characterArtPath = value;
+    else this.tokenArtPath = value;
+    const field = this.root.querySelector(`[data-path="${kind}"]`);
+    if (field) field.value = value;
+    const button = this.root.querySelector(`[data-action="copy-${kind}-path"]`);
+    if (button) button.disabled = !value;
+  }
+
+  async copyPath(path, label) {
+    if (!path) return;
     try {
-      await navigator.clipboard.writeText(this.savedPath);
+      await navigator.clipboard.writeText(path);
     } catch (_error) {
       const field = document.createElement("textarea");
-      field.value = this.savedPath;
+      field.value = path;
       field.style.position = "fixed";
       field.style.opacity = "0";
       document.body.appendChild(field);
@@ -584,8 +634,8 @@ class HexTokenCropper {
       field.remove();
       if (!copied) throw new Error("Clipboard access was denied.");
     }
-    this.setStatus(`Copied: ${this.savedPath}`);
-    ui.notifications.info("Token path copied to the clipboard.");
+    this.setStatus(`${label} path copied.`);
+    ui.notifications.info(`${label} path copied to the clipboard.`);
   }
 
   pointInDisplay(px, py) {
