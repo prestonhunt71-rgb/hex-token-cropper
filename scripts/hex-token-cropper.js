@@ -1,4 +1,5 @@
 const MODULE_ID = "hex-token-cropper";
+const CHARACTER_ART_MAX_EDGE = 768;
 
 function getFilePickerClass() {
   // The Forge augments Foundry's global FilePicker with its Assets Library and
@@ -150,7 +151,7 @@ class HexTokenCropper {
               Filename suffix
               <input type="text" data-field="suffix" value="${this.escape(game.settings.get(MODULE_ID, "suffix"))}">
             </label>
-            <p class="htc-format-note"><i class="fa-solid fa-image"></i> Character and token art are saved as WebP.</p>
+            <p class="htc-format-note"><i class="fa-solid fa-image"></i> Character and token art are saved as WebP. Converted character art is limited to 768 px on its longest side.</p>
             <label class="htc-checkbox">
               <input type="checkbox" data-field="outline">
               Bake a thin shape outline into image
@@ -469,8 +470,9 @@ class HexTokenCropper {
 
     this.setStatus("Converting character art to WebP…");
     const canvas = document.createElement("canvas");
-    canvas.width = this.image.naturalWidth;
-    canvas.height = this.image.naturalHeight;
+    const dimensions = this.scaledCharacterDimensions(this.image.naturalWidth, this.image.naturalHeight);
+    canvas.width = dimensions.width;
+    canvas.height = dimensions.height;
     const ctx = canvas.getContext("2d");
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
@@ -483,6 +485,15 @@ class HexTokenCropper {
     const uploadResult = await FilePickerClass.upload(destination.source, destination.directory, file, {}, { notify: false });
     if (!uploadResult?.path) throw new Error("The storage provider did not return the converted character art path.");
     return uploadResult.path;
+  }
+
+  scaledCharacterDimensions(width, height) {
+    const longestEdge = Math.max(width, height);
+    const scale = longestEdge > CHARACTER_ART_MAX_EDGE ? CHARACTER_ART_MAX_EDGE / longestEdge : 1;
+    return {
+      width: Math.max(1, Math.round(width * scale)),
+      height: Math.max(1, Math.round(height * scale))
+    };
   }
 
   canvasToWebP(canvas) {

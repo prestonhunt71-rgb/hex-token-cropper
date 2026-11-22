@@ -92,6 +92,33 @@ test("encodes canvases as WebP at the configured quality", async () => {
   assert.equal(await cropper.canvasToWebP(canvas), expected);
 });
 
+test("scales converted portrait art to a 768 px longest edge", () => {
+  const { Cropper } = loadCropper();
+  const cropper = instance(Cropper, "portrait.png");
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(cropper.scaledCharacterDimensions(1024, 1536))),
+    { width: 512, height: 768 }
+  );
+});
+
+test("scales converted landscape art while preserving aspect ratio", () => {
+  const { Cropper } = loadCropper();
+  const cropper = instance(Cropper, "landscape.jpg");
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(cropper.scaledCharacterDimensions(1920, 1080))),
+    { width: 768, height: 432 }
+  );
+});
+
+test("does not enlarge smaller character art", () => {
+  const { Cropper } = loadCropper();
+  const cropper = instance(Cropper, "small.png");
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(cropper.scaledCharacterDimensions(400, 600))),
+    { width: 400, height: 600 }
+  );
+});
+
 test("rejects a browser fallback that is not actually WebP", async () => {
   const { Cropper } = loadCropper();
   const cropper = instance(Cropper, "portrait.png");

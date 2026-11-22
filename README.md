@@ -9,7 +9,7 @@ A small Foundry VTT module for creating hexagonal, circular, or square token ima
 - GM-only, because saving files requires upload permission
 - The Forge Assets Library (explicit `forgevtt` upload support)
 
-Version 1.4.0 saves all output as WebP. If the chosen character image is not already WebP, the module creates a full-size WebP copy while preserving the original file. It also shows separate, copyable paths for the WebP character art and WebP token art. It uses The Forge's augmented FilePicker while hosted on Forge, preserving the **The Forge Assets** and **The Bazaar** tabs. Outside Forge it uses Foundry's namespaced FilePicker API.
+Version 1.4.1 saves all output as WebP. If the chosen character image is not already WebP, the module creates a WebP copy capped at 768 pixels on its longest side while preserving the original aspect ratio and original file. Smaller images are never enlarged. It also shows separate, copyable paths for the WebP character art and WebP token art. It uses The Forge's augmented FilePicker while hosted on Forge, preserving the **The Forge Assets** and **The Bazaar** tabs. Outside Forge it uses Foundry's namespaced FilePicker API.
 
 ## Installation
 
@@ -39,7 +39,8 @@ The WebP files are saved beside the source when its storage location is writable
 ## Notes
 
 - The saved file is rectangular, as all raster image files are, but pixels outside a hex or circle are transparent.
-- Non-WebP source art is preserved and a full-size WebP copy is saved beside it when possible.
+- Non-WebP source art is preserved and a WebP copy no larger than 768 pixels on its longest side is saved beside it when possible.
+- Character-art conversion preserves aspect ratio and never enlarges smaller originals.
 - Existing WebP character art is reused rather than converted again.
 - The default hex is flat-top.
 - The crop is saved through Foundry's standard `FilePicker.upload` API.

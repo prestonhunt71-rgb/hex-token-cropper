@@ -2,7 +2,7 @@
   "id": "hex-token-cropper",
   "title": "Token Shape Cropper",
   "description": "Convert character art to WebP and crop hex, circle, or square WebP tokens inside Foundry VTT.",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "authors": [
     {
       "name": "Dungeon Master"
@@ -20,5 +20,5 @@
   ],
   "url": "https://github.com/prestonhunt71-rgb/hex-token-cropper",
   "manifest": "https://raw.githubusercontent.com/prestonhunt71-rgb/hex-token-cropper/main/module.json",
-  "download": "https://github.com/prestonhunt71-rgb/hex-token-cropper/releases/download/v1.4.0/hex-token-cropper-v1.4.0-forge.zip"
+  "download": "https://github.com/prestonhunt71-rgb/hex-token-cropper/releases/download/v1.4.1/hex-token-cropper-v1.4.1-forge.zip"
 }
